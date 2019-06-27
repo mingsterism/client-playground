@@ -2,8 +2,12 @@
   <div>
     <form method="post" enctype="multipart/form-data">
       <input type="file" name="avatar" @change="handleUpload" />
-      <input @click="postingFile" type="submit" value="Submit" />
+      <input @click="postFile" type="submit" value="Submit" />
     </form>
+    <h3>Files</h3>
+    <p v-for="(obj, index) in files" :key="(index + 1) * Math.random()">
+      {{ obj.name }}
+    </p>
 
     <button @click="getAllFiles">GETALL FILES</button>
     <ul v-for="(file, index) in files" :key="(index + 1) * Math.random()">
@@ -15,7 +19,7 @@
     <h2>Multiple files</h2>
     <form method="post" enctype="multipart/form-data">
       <input type="file" multiple @change="handleUpload" name="avatar" />
-      <input @click="postMultipleFiles" type="submit" value="Submit" />
+      <input @click="postFile" type="submit" value="Submit" />
     </form>
 
     <p v-for="(obj, index) in uploadFiles" :key="(index + 1) * Math.random()">
@@ -38,45 +42,11 @@ export default {
     };
   },
   methods: {
-    handleInput(e) {
-      console.log("handle Input");
-      console.log(e.target.files);
-    },
-    handleChange(e) {
-      console.log("handleChange");
-      console.log(e.target.files);
-      this.uploadFiles = e.target.files;
-    },
-    uploadImage(e) {
-      this.inputFile = e.target.files[0];
-      console.log(e.target.files[0]);
-    },
-    postMultipleFiles(e) {
-      e.preventDefault();
-      console.log("----------");
-      console.log(e);
-      console.log(e.target.files);
-      console.log("FILE LIST: ", this.uploadFiles);
-      Object.values(this.uploadFiles).map(file => this.postFile(file));
-    },
     handleUpload(e) {
-      e.preventDefault();
-      console.log(typeof e.target.files);
-      if (e.target.files.length > 1) {
-        console.log("MULTI");
-        console.log(e.target.files.length);
-        console.log(e.target.files);
-        this.files = e.target.files;
-      } else {
-        console.log("Single");
-        console.log(e.target.files);
-        this.files = e.target.files;
-      }
-
-      // this.uploadFiles(e.target.files[0]);
+      this.files = e.target.files;
     },
+
     uploadFile(file) {
-      console.log("Uploading file");
       const formData = new FormData();
       formData.append("uploadedFile", file, file.name);
       fetch(`${URI}/postFile`, {
@@ -96,37 +66,13 @@ export default {
         });
     },
 
-    postingFile(e) {
-      e.preventDefault();
-      if (this.files.length > 1) {
-        console.log("MULTI");
-        console.log(e.target.files.length);
-        console.log(e.target.files);
-        Object.values(this.files).map(file => this.uploadFile(file));
-      } else {
-        console.log("Single");
-        console.log(this.files);
-        this.uploadFile(this.files);
-      }
-    },
     postFile(e) {
       e.preventDefault();
-      const formData = new FormData();
-      formData.append("uploadedFile", this.inputFile, this.inputFile.name);
-      fetch(`${URI}/postFile`, {
-        method: "POST",
-        body: formData
-      })
-        .then(function(response) {
-          if (response.ok) {
-            console.log("Click was recorded");
-            return;
-          }
-          throw new Error("Request failed.");
-        })
-        .catch(function(error) {
-          console.log(error);
-        });
+      if (this.files.length > 1) {
+        Object.values(this.files).map(file => this.uploadFile(file));
+      } else {
+        this.uploadFile(this.files[0]);
+      }
     },
 
     async fetchFile({ filename, id }) {
@@ -154,17 +100,6 @@ export default {
       });
       const data = await resp.json();
       this.files = data;
-    },
-
-    async test() {
-      const resp = await fetch(`${URI}/test`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
-      const data = await resp.json();
-      console.log(data);
     }
   }
 };
