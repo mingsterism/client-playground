@@ -1,16 +1,12 @@
 <template>
   <div>
-    <form method="post" enctype="multipart/form-data">
-      <input type="file" name="avatar" @change="handleUpload" />
-      <input @click="postFile" type="submit" value="Submit" />
-    </form>
     <h3>Files</h3>
     <p v-for="(obj, index) in files" :key="(index + 1) * Math.random()">
       {{ obj.name }}
     </p>
 
     <button @click="getAllFiles">GETALL FILES</button>
-    <ul v-for="(file, index) in files" :key="(index + 1) * Math.random()">
+    <ul v-for="(file, index) in results" :key="(index + 1) * Math.random()">
       <li @click="fetchFile({ filename: file.filename, id: file._id })">
         {{ file.filename }}
         {{ file._id }}
@@ -38,12 +34,14 @@ export default {
     return {
       files: [],
       inputFile: {},
-      uploadFiles: {}
+      uploadFiles: {},
+      results: []
     };
   },
   methods: {
     handleUpload(e) {
-      this.files = e.target.files;
+      console.log(this.files);
+      Object.values(e.target.files).map(d => this.files.push(d));
     },
 
     uploadFile(file) {
@@ -68,11 +66,10 @@ export default {
 
     postFile(e) {
       e.preventDefault();
-      if (this.files.length > 1) {
-        Object.values(this.files).map(file => this.uploadFile(file));
-      } else {
-        this.uploadFile(this.files[0]);
-      }
+      this.files.map(file => {
+        this.uploadFile(file);
+      });
+      this.files = [];
     },
 
     async fetchFile({ filename, id }) {
@@ -99,7 +96,7 @@ export default {
         }
       });
       const data = await resp.json();
-      this.files = data;
+      this.results = data;
     }
   }
 };
