@@ -2,6 +2,7 @@ import Vue from "vue";
 import Router from "vue-router";
 import Home from "./views/Home.vue";
 import FileServer from "./views/FileServer.vue";
+import Playground from "./views/Playground.vue";
 
 Vue.use(Router);
 
@@ -18,6 +19,11 @@ export default new Router({
       path: "/FileServer",
       name: "file",
       component: FileServer
+    },
+    {
+      path: "/Playground",
+      name: "playground",
+      component: Playground
     },
     {
       path: "/about",
