@@ -4,7 +4,9 @@
     <p v-for="(obj, index) in files" :key="(index + 1) * Math.random()">
       {{ obj.name }}
     </p>
-
+    <div>
+      <progress :value="progress" max="100"></progress>
+    </div>
     <button @click="getAllFiles">GETALL FILES</button>
     <ul v-for="(file, index) in results" :key="(index + 1) * Math.random()">
       <li @click="fetchFile({ filename: file.filename, id: file._id })">
@@ -27,7 +29,7 @@
 </template>
 
 <script>
-const URI = "http://localhost:3000";
+const URI = "http://localhost:3001";
 // const URI = "http://localhost:4000";
 export default {
   data() {
@@ -35,7 +37,8 @@ export default {
       files: [],
       inputFile: {},
       uploadFiles: {},
-      results: []
+      results: [],
+      progress: 0
     };
   },
   methods: {
@@ -53,15 +56,39 @@ export default {
       })
         .then(function(response) {
           console.log("RESPONSE", response);
-          if (response.ok) {
-            console.log("Click was recorded");
-            return;
-          }
-          throw new Error("Request failed.");
+          const reader = response.body.getReader();
+          return new ReadableStream({
+            start(controller) {
+              return pump();
+              function pump() {
+                return reader.read().then(({ done, value }) => {
+                  console.log("Value: ", value);
+                  // When no more data needs to be consumed, close the stream
+                  if (done) {
+                    controller.close();
+                    return;
+                  }
+                  // Enqueue the next data chunk into our target stream
+                  controller.enqueue(value);
+                  return pump();
+                });
+              }
+            }
+          });
         })
-        .catch(function(error) {
-          console.log(error);
-        });
+        .then(stream => new Response(stream))
+        .then(response => response.blob())
+        .then(blob => URL.createObjectURL(blob))
+        .catch(err => console.error(err));
+      //   if (response.ok) {
+      //     console.log("Click was recorded");
+      //     return;
+      //   }
+      //   throw new Error("Request failed.");
+      // })
+      // .catch(function(error) {
+      //   console.log(error);
+      // });
     },
 
     postFile(e) {
@@ -73,19 +100,53 @@ export default {
     },
 
     async fetchFile({ filename, id }) {
-      const filePath = `${URI}/getFile?id=${id}`;
-      const respData = await fetch(filePath, {
+      const fileMetaPath = `${URI}/getFileMeta?id=${id}`;
+      const fileMetaData = await fetch(fileMetaPath, {
         method: "GET"
+      }).then(async function(response) {
+        const metaData = await response.json();
+        return metaData;
       });
-      const blob = await respData.blob();
-      console.log(blob);
-      var url = window.URL.createObjectURL(blob);
+
+      const filePath = `${URI}/getFile?id=${id}`;
+      const url = await fetch(filePath, {
+        method: "GET"
+      })
+        .then(response => {
+          const reader = response.body.getReader();
+          return new ReadableStream({
+            start: controller => {
+              const pump = () => {
+                return reader.read().then(({ done, value }) => {
+                  // When no more data needs to be consumed, close the stream
+                  // console.log("Progress: ", value.byteLength, this.progress);
+                  if (done) {
+                    controller.close();
+                    return;
+                  }
+                  this.progress =
+                    this.progress +
+                    (value.byteLength / fileMetaData[0].length) * 100;
+                  // Enqueue the next data chunk into our target stream
+                  controller.enqueue(value);
+                  return pump();
+                });
+              };
+              return pump();
+            }
+          });
+        })
+        .then(stream => new Response(stream))
+        .then(response => response.blob())
+        .then(blob => URL.createObjectURL(blob))
+        .catch(err => console.error(err));
       var a = document.createElement("a");
       a.href = url;
       a.download = `${filename}`;
       document.body.appendChild(a); // we need to append the element to the dom -> otherwise it will not work in firefox
       a.click();
       a.remove(); //afterwards we remove the element again
+      this.progress = 0;
     },
 
     async getAllFiles() {
